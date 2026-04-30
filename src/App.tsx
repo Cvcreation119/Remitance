@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Search, 
@@ -17,8 +17,11 @@ import {
   DollarSign,
   Info,
   Menu,
-  X
+  X,
+  Download
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -28,7 +31,7 @@ import { Label } from '@/components/ui/label';
 
 interface TransferDetails {
   trackingNumber: string;
-  status: 'available' | 'pending' | 'completed';
+  status: 'available' | 'pending' | 'completed' | 'canceled';
   amountUSD: string;
   amountPHP: string;
   senderName: string;
@@ -36,6 +39,7 @@ interface TransferDetails {
   pickupLocation: string;
   sendDate: string;
   expiryDate: string;
+  senderNote?: string;
 }
 
 export default function App() {
@@ -47,13 +51,44 @@ export default function App() {
   const [result, setResult] = useState<TransferDetails | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const receiptRef = useRef<HTMLDivElement>(null);
 
   const USD_TO_PHP_RATE = 56.25;
 
+  const handleDownloadPDF = async () => {
+    if (!receiptRef.current) return;
+    
+    setIsDownloading(true);
+    try {
+      const element = receiptRef.current;
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff' // white background for PDF
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'px',
+        format: [canvas.width / 2, canvas.height / 2]
+      });
+
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2);
+      pdf.save(`WorIdRemit_Receipt_${result?.trackingNumber || 'Transfer'}.pdf`);
+    } catch (err) {
+      console.error('PDF Generation Error:', err);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   const handleSearch = (e: FormEvent) => {
     e.preventDefault();
-    if (!trackingNumber.trim() || trackingNumber.length < 10) {
-      setError('Please enter a valid 10-digit tracking number');
+    if (!trackingNumber.trim() || trackingNumber.length < 9) {
+      setError('Please enter a valid 9-digit tracking number');
       return;
     }
     if (!firstName.trim() || !lastName.trim()) {
@@ -77,14 +112,15 @@ export default function App() {
 
       setResult({
         trackingNumber: trackingNumber.toUpperCase(),
-        status: 'available',
+        status: 'canceled',
         amountUSD: usdValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         amountPHP: phpValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         senderName: 'Jacob Beirstine',
         receiverName: `${firstName} ${lastName}`,
         pickupLocation: 'Any Cebuana Lhuillier Branch',
         sendDate: new Date().toLocaleDateString(),
-        expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString(),
+        expiryDate: '04/30/2026',
+        senderNote: 'Web Development Salary'
       });
     }, 1500);
   };
@@ -92,7 +128,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur-md">
+      <nav className="sticky top-0 z-50 border-b border-slate-200 bg-white/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white shadow-lg shadow-primary/20">
@@ -105,7 +141,7 @@ export default function App() {
             <a href="#" className="text-sm font-medium text-slate-600 hover:text-primary transition-colors">Send Money</a>
             <a href="#" className="text-sm font-medium text-slate-600 hover:text-primary transition-colors">Locations</a>
             <a href="#" className="text-sm font-medium text-slate-600 hover:text-primary transition-colors">Help</a>
-            <Button variant="outline" size="sm">Log In</Button>
+            <Button variant="outline" size="sm" className="border-slate-300 text-slate-600 hover:bg-slate-50">Log In</Button>
             <Button size="sm">Sign Up</Button>
           </div>
 
@@ -124,13 +160,13 @@ export default function App() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="md:hidden border-t bg-white px-4 py-4 space-y-4"
+              className="md:hidden border-t border-slate-200 bg-white px-4 py-4 space-y-4"
             >
               <a href="#" className="block text-base font-medium text-slate-600">Send Money</a>
               <a href="#" className="block text-base font-medium text-slate-600">Locations</a>
               <a href="#" className="block text-base font-medium text-slate-600">Help</a>
               <div className="flex flex-col gap-2 pt-2">
-                <Button variant="outline" className="w-full">Log In</Button>
+                <Button variant="outline" className="w-full border-slate-300">Log In</Button>
                 <Button className="w-full">Sign Up</Button>
               </div>
             </motion.div>
@@ -144,7 +180,7 @@ export default function App() {
           {/* Left Column: Hero & Search */}
           <div className="space-y-8">
             <div className="space-y-4">
-              <Badge variant="secondary" className="px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
+              <Badge variant="secondary" className="px-3 py-1 text-xs font-semibold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
                 Global Money Tracking
               </Badge>
               <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
@@ -155,12 +191,12 @@ export default function App() {
               </p>
             </div>
 
-            <Card className="border-none shadow-2xl shadow-slate-200/50">
-              <CardHeader>
-                <CardTitle className="text-xl">Track Transfer</CardTitle>
-                <CardDescription>Enter the 10-digit tracking number provided on your receipt.</CardDescription>
+            <Card className="border-none shadow-2xl shadow-slate-200/50 overflow-hidden">
+              <CardHeader className="border-b border-slate-100">
+                <CardTitle className="text-xl text-slate-900">Track Transfer</CardTitle>
+                <CardDescription>Enter the 9-digit tracking number provided on your receipt.</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 <form onSubmit={handleSearch} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -168,6 +204,7 @@ export default function App() {
                       <Input 
                         id="first-name"
                         placeholder="Receiver's First Name" 
+                        className="bg-slate-50 border-slate-200 focus:ring-primary"
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
                       />
@@ -177,6 +214,7 @@ export default function App() {
                       <Input 
                         id="last-name"
                         placeholder="Receiver's Last Name" 
+                        className="bg-slate-50 border-slate-200 focus:ring-primary"
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
                       />
@@ -192,7 +230,7 @@ export default function App() {
                         type="number"
                         step="0.01"
                         placeholder="0.00" 
-                        className="pl-10"
+                        className="pl-10 bg-slate-50 border-slate-200 focus:ring-primary"
                         value={amountUSD}
                         onChange={(e) => setAmountUSD(e.target.value)}
                       />
@@ -205,9 +243,9 @@ export default function App() {
                       <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                       <Input 
                         id="tracking-number"
-                        placeholder="10-digit MTCN" 
-                        maxLength={10}
-                        className="pl-10 h-12 text-lg"
+                        placeholder="9-digit MTCN" 
+                        maxLength={9}
+                        className="pl-10 h-12 text-lg bg-slate-50 border-slate-200 focus:ring-primary"
                         value={trackingNumber}
                         onChange={(e) => setTrackingNumber(e.target.value.replace(/\D/g, ''))}
                       />
@@ -233,7 +271,7 @@ export default function App() {
                   </Button>
                 </form>
               </CardContent>
-              <CardFooter className="bg-slate-50/50 px-6 py-4 rounded-b-xl border-t">
+              <CardFooter className="bg-slate-50/50 px-6 py-4 rounded-b-xl border-t border-slate-100">
                 <div className="flex items-center gap-2 text-xs text-slate-500">
                   <ShieldCheck className="h-4 w-4 text-emerald-500" />
                   Your data is encrypted and secure.
@@ -273,90 +311,113 @@ export default function App() {
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.4, ease: "easeOut" }}
                 >
-                  <Card className="overflow-hidden border-none shadow-2xl shadow-slate-200/50">
-                    <div className="bg-emerald-500 px-6 py-8 text-white text-center">
-                      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
-                        <CheckCircle2 className="h-10 w-10" />
-                      </div>
-                      <h2 className="text-2xl font-bold">Ready for Pickup</h2>
-                      <p className="mt-1 text-emerald-50 opacity-90">The funds are available at any agent location.</p>
-                    </div>
-                    
-                    <CardContent className="p-0">
-                      <div className="p-6 space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Amount to Receive (PHP)</p>
-                            <div className="flex items-baseline gap-1">
-                              <span className="text-3xl font-bold text-emerald-600">₱{result.amountPHP}</span>
-                            </div>
-                            <p className="text-[10px] text-slate-400 italic">Converted from ${result.amountUSD} USD</p>
-                          </div>
-                          <div className="flex flex-col items-end justify-center">
-                            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none px-3 py-1 mb-1">
-                              Available
-                            </Badge>
-                            <p className="text-[10px] text-slate-400">Rate: 1 USD = 56.25 PHP</p>
-                          </div>
+                  <div ref={receiptRef}>
+                    <Card className="overflow-hidden border-none shadow-2xl shadow-slate-200/50">
+                      <div className="bg-slate-600 px-6 py-8 text-white text-center">
+                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
+                          <X className="h-10 w-10" />
                         </div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] mb-1 opacity-80">WorId Remit Global Receipt</p>
+                        <h2 className="text-2xl font-bold">Automatically Canceled</h2>
+                        <p className="mt-1 text-slate-100 opacity-90 px-4">This transfer has been canceled and is no longer available.</p>
+                      </div>
+                      
+                      <CardContent className="p-0 bg-white">
+                        <div className="p-6 space-y-6">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Amount to Receive (PHP)</p>
+                              <div className="flex items-baseline gap-1">
+                                <span className="text-3xl font-bold text-slate-400">₱{result.amountPHP}</span>
+                              </div>
+                              <p className="text-[10px] text-slate-400 italic">Converted from ${result.amountUSD} USD</p>
+                            </div>
+                            <div className="flex flex-col items-end justify-center">
+                              <Badge className="bg-slate-100 text-slate-600 hover:bg-slate-100 border-none px-3 py-1 mb-1">
+                                Canceled
+                              </Badge>
+                              <p className="text-[10px] text-slate-400">Rate: 1 USD = 56.25 PHP</p>
+                            </div>
+                          </div>
 
-                        <Separator />
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 flex items-start gap-3">
+                            <Info className="h-5 w-5 text-slate-600 shrink-0 mt-0.5" />
+                            <div className="text-sm text-slate-600">
+                              <p className="font-semibold mb-1">Cancellation Notice:</p>
+                              <p className="opacity-90">This transaction was automatically canceled. Please contact the sender or our support at <span className="font-bold">800-1-320-0210</span> for more information.</p>
+                            </div>
+                          </div>
 
-                        <div className="grid grid-cols-2 gap-6">
+                          <Separator className="bg-slate-100" />
+
+                          <div className="grid grid-cols-2 gap-6">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 text-slate-400">
+                                <User className="h-3.5 w-3.5" />
+                                <span className="text-xs font-medium uppercase tracking-wider">Sender</span>
+                              </div>
+                              <p className="font-semibold text-slate-900">{result.senderName}</p>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 text-slate-400">
+                                <User className="h-3.5 w-3.5" />
+                                <span className="text-xs font-medium uppercase tracking-wider">Receiver</span>
+                              </div>
+                              <p className="font-semibold text-slate-900">{result.receiverName}</p>
+                            </div>
+                          </div>
+
                           <div className="space-y-1">
                             <div className="flex items-center gap-2 text-slate-400">
-                              <User className="h-3.5 w-3.5" />
-                              <span className="text-xs font-medium uppercase tracking-wider">Sender</span>
+                              <MapPin className="h-3.5 w-3.5" />
+                              <span className="text-xs font-medium uppercase tracking-wider">Pickup Location</span>
                             </div>
-                            <p className="font-semibold text-slate-900">{result.senderName}</p>
+                            <p className="font-semibold text-slate-900">{result.pickupLocation}</p>
                           </div>
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-slate-400">
-                              <User className="h-3.5 w-3.5" />
-                              <span className="text-xs font-medium uppercase tracking-wider">Receiver</span>
+
+                          <div className="grid grid-cols-2 gap-6">
+                            <div className="space-y-1">
+                              <span className="text-xs font-medium uppercase tracking-wider text-slate-400">Send Date</span>
+                              <p className="font-medium text-slate-700">{result.sendDate}</p>
                             </div>
-                            <p className="font-semibold text-slate-900">{result.receiverName}</p>
+                            <div className="space-y-1">
+                              <span className="text-xs font-medium uppercase tracking-wider text-slate-400">Expiry Date</span>
+                              <p className="font-medium text-slate-700">{result.expiryDate}</p>
+                            </div>
                           </div>
-                        </div>
 
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2 text-slate-400">
-                            <MapPin className="h-3.5 w-3.5" />
-                            <span className="text-xs font-medium uppercase tracking-wider">Pickup Location</span>
-                          </div>
-                          <p className="font-semibold text-slate-900">{result.pickupLocation}</p>
-                        </div>
+                          {result.senderNote && (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 text-slate-400">
+                                <Info className="h-3.5 w-3.5" />
+                                <span className="text-xs font-medium uppercase tracking-wider">Sender's Note</span>
+                              </div>
+                              <p className="text-sm font-medium text-slate-600 bg-slate-50 p-2 rounded-md italic">
+                                "{result.senderNote}"
+                              </p>
+                            </div>
+                          )}
 
-                        <div className="grid grid-cols-2 gap-6">
-                          <div className="space-y-1">
-                            <span className="text-xs font-medium uppercase tracking-wider text-slate-400">Send Date</span>
-                            <p className="font-medium text-slate-700">{result.sendDate}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <span className="text-xs font-medium uppercase tracking-wider text-slate-400">Expiry Date</span>
-                            <p className="font-medium text-slate-700">{result.expiryDate}</p>
-                          </div>
-                        </div>
-
-                        <div className="rounded-xl bg-slate-50 p-4 flex items-start gap-3">
-                          <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                          <div className="text-sm text-slate-600">
-                            <p className="font-semibold text-slate-900 mb-1">How to pick up your money:</p>
-                            <ul className="list-disc list-inside space-y-1">
-                              <li>Bring a valid government-issued ID.</li>
-                              <li>Provide the tracking number: <span className="font-mono font-bold text-primary">{result.trackingNumber}</span></li>
-                              <li>Complete the receiver form at the location.</li>
-                            </ul>
+                          <div className="rounded-xl bg-slate-50 p-4 flex items-start gap-3">
+                            <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                            <div className="text-sm text-slate-600">
+                              <p className="font-semibold text-slate-900 mb-1">Pickup Information:</p>
+                              <p className="text-destructive font-medium">This transfer is no longer valid for pickup.</p>
+                              <p className="mt-2">Funds have been returned or the transaction was expired according to our security policies.</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </CardContent>
-                    <CardFooter className="bg-slate-50 px-6 py-4 flex justify-between items-center">
-                      <Button variant="ghost" size="sm" className="text-slate-500" onClick={() => setResult(null)}>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  <Card className="mt-4 border-none shadow-xl shadow-slate-200/50 overflow-hidden">
+                    <CardFooter className="bg-slate-50 px-6 py-4 flex justify-between items-center rounded-xl">
+                      <Button variant="ghost" size="sm" className="text-slate-500 hover:text-primary" onClick={() => setResult(null)}>
                         Track Another
                       </Button>
-                      <Button size="sm" className="gap-2">
-                        Print Receipt
+                      <Button size="sm" className="gap-2 shadow-lg shadow-primary/20" onClick={handleDownloadPDF} disabled={isDownloading}>
+                        {isDownloading ? <Clock className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                        {isDownloading ? 'Generating...' : 'Download PDF Receipt'}
                       </Button>
                     </CardFooter>
                   </Card>
@@ -383,10 +444,10 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-24 border-t bg-white py-12">
+      <footer className="mt-24 border-t border-slate-200 bg-white py-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
-            <div className="flex items-center gap-2 opacity-50 grayscale">
+            <div className="flex items-center gap-2 opacity-30 grayscale">
               <Globe className="h-5 w-5" />
               <span className="text-lg font-bold tracking-tight">WorId Remit</span>
             </div>
@@ -394,9 +455,9 @@ export default function App() {
               © 2026 WorId Remit Global Financial Services. All rights reserved.
             </p>
             <div className="flex gap-6">
-              <a href="#" className="text-sm text-slate-400 hover:text-slate-600">Privacy Policy</a>
-              <a href="#" className="text-sm text-slate-400 hover:text-slate-600">Terms of Service</a>
-              <a href="#" className="text-sm text-slate-400 hover:text-slate-600">Contact Us</a>
+              <a href="#" className="text-sm text-slate-400 hover:text-primary">Privacy Policy</a>
+              <a href="#" className="text-sm text-slate-400 hover:text-primary">Terms of Service</a>
+              <a href="#" className="text-sm text-slate-400 hover:text-primary">Contact Us</a>
             </div>
           </div>
         </div>
