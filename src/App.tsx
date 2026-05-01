@@ -77,7 +77,7 @@ export default function App() {
       });
 
       pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2);
-      pdf.save(`WorIdRemit_Receipt_${result?.trackingNumber || 'Transfer'}.pdf`);
+      pdf.save(`WorldRemit_Receipt_${result?.trackingNumber || 'Transfer'}.pdf`);
     } catch (err) {
       console.error('PDF Generation Error:', err);
     } finally {
@@ -134,7 +134,7 @@ export default function App() {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white shadow-lg shadow-primary/20">
               <Globe className="h-6 w-6" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-slate-900">WorId Remit</span>
+            <span className="text-xl font-bold tracking-tight text-slate-900">World Remit</span>
           </div>
           
           <div className="hidden md:flex md:items-center md:gap-8">
@@ -194,7 +194,7 @@ export default function App() {
             <Card className="border-none shadow-2xl shadow-slate-200/50 overflow-hidden">
               <CardHeader className="border-b border-slate-100">
                 <CardTitle className="text-xl text-slate-900">Track Transfer</CardTitle>
-                <CardDescription>Enter the 9-digit tracking number provided on your receipt.</CardDescription>
+                <CardDescription>International Money Transfer. Enter the 9-digit tracking number provided on your receipt.</CardDescription>
               </CardHeader>
               <CardContent className="pt-6">
                 <form onSubmit={handleSearch} className="space-y-4">
@@ -317,7 +317,7 @@ export default function App() {
                         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
                           <X className="h-10 w-10" />
                         </div>
-                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] mb-1 opacity-80">WorId Remit Global Receipt</p>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] mb-1 opacity-80">World Remit Global Receipt</p>
                         <h2 className="text-2xl font-bold">Automatically Canceled</h2>
                         <p className="mt-1 text-slate-100 opacity-90 px-4">This transfer has been canceled and is no longer available.</p>
                       </div>
@@ -449,10 +449,10 @@ export default function App() {
           <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
             <div className="flex items-center gap-2 opacity-30 grayscale">
               <Globe className="h-5 w-5" />
-              <span className="text-lg font-bold tracking-tight">WorId Remit</span>
+              <span className="text-lg font-bold tracking-tight">World Remit</span>
             </div>
             <p className="text-sm text-slate-500">
-              © 2026 WorId Remit Global Financial Services. All rights reserved.
+              © 2026 World Remit Global Financial Services. All rights reserved.
             </p>
             <div className="flex gap-6">
               <a href="#" className="text-sm text-slate-400 hover:text-primary">Privacy Policy</a>
